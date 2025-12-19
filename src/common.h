@@ -6,7 +6,7 @@
 #define SCREEN_WIDTH  320
 #define SCREEN_HEIGHT 240
 
-#include "../include/ultra64.h"
-#include "../include/ultra64/leo.h"
+#include "../include/ultra64/ultratypes.h"
+#include "../include/libc/stdbool.h"
 
 #endif // COMMON_H

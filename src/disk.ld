@@ -49,10 +49,12 @@ SECTIONS {
     . = ORIGIN(RAM);
     .text : AT(OFFSET)
     {
+        __text_start = .;
         __entry = .;
         *(.text*)
         *(.init)
         *(.fini)
+        __text_end  = .;
     } > RAM
 
     .rodata ALIGN(32) :
@@ -61,18 +63,65 @@ SECTIONS {
         *(.eh_frame*)
     } > RAM
 
-    .data ALIGN(32) :
-    {
-        *(.data*)
-        *(.sdata*)
+    .data : {
+        __data_start = .;
+        *(.data)
+        *(.data.*)
+        KEEP(*(keep.data.*))
+        *(.gnu.linkonce.d.*)
+        . = ALIGN(8);
     } > RAM
 
-    .bss ALIGN(32) :
-    {
-        *(COMMON)
-        *(.bss*)
-        *(.sbss*)
+    .sdata : {
+        _gp = . + 0x8000;
+        *(.sdata)
+        *(.sdata.*)
+        *(.gnu.linkonce.s.*)
+        . = ALIGN(8);
     } > RAM
+
+    .lit8 : {
+        *(.lit8)
+        . = ALIGN(8);
+    } > RAM
+
+    .lit4 : {
+        *(.lit4)
+        . = ALIGN(8);
+    } > RAM
+
+    .sbss : {
+         __bss_start = .;
+        *(.sbss)
+        *(.sbss.*)
+        *(.gnu.linkonce.sb.*)
+        *(.scommon)
+        *(.scommon.*)
+    } > RAM
+
+    . = ALIGN(8);
+    .bss : {
+        *(.bss)
+        *(.bss*)
+        *(.gnu.linkonce.b.*)
+        *(COMMON)
+        . = ALIGN(8);
+         __bss_end = .;
+    } > RAM
+
+   .eh_frame_hdr : { *(.eh_frame_hdr) }
+   .eh_frame : { 
+        __EH_FRAME_BEGIN__ = .; /* Define symbol for accessing eh_frame section */
+        KEEP (*(.eh_frame)) 
+    } > RAM
+
+    .ctors : {
+        __CTOR_LIST__ = .;
+
+        KEEP(*(.ctors))
+
+        __CTOR_END__ = .;
+    } > RAM    
 
     . = ALIGN(32);
     __ramEnd = .;

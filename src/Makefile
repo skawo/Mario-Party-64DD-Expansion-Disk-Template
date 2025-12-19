@@ -4,15 +4,32 @@ else
 EXE=linux
 endif
 
-CC      = ../tool/gcc/$(EXE)/mips64-gcc
-LD      = ../tool/gcc/$(EXE)/mips64-ld
-OBJCOPY = ../tool/gcc/$(EXE)/mips64-objcopy
-OBJDUMP = ../tool/gcc/$(EXE)/mips64-objdump
-CC1_DIR = ../tool/gcc/$(EXE)
-LIBGCC = ../tool/gcc/libgcc.a
+N64_GCCPREFIX ?= $(N64_INST)
+N64_TARGET ?= mips64-elf
+N64_ROOTDIR = $(N64_INST)
+N64_BINDIR = $(N64_ROOTDIR)/bin
+N64_INCLUDEDIR = $(N64_ROOTDIR)/$(N64_TARGET)/include
+N64_LIBDIR = $(N64_ROOTDIR)/$(N64_TARGET)/lib
+N64_GCCPREFIX_TRIPLET = $(N64_GCCPREFIX)/bin/$(addsuffix -,$(N64_TARGET))
 
-CFLAGS = -G 0 -Os -I../include/libc -I../include -fno-toplevel-reorder --std=gnu99 -mtune=vr4300 -mabi=32 -mips3 -mno-check-zero-division -fno-builtin -mno-explicit-relocs -mno-memcpy -fno-reorder-blocks -ffast-math -fno-unsafe-math-optimizations -mno-check-zero-division -fno-optimize-sibling-calls
-LDFLAGS = -T disk.ld --emit-relocs $(LIBGCC)
+N64_CC = $(CCACHE) $(N64_GCCPREFIX_TRIPLET)gcc
+N64_CXX = $(CCACHE) $(N64_GCCPREFIX_TRIPLET)g++
+N64_AS = $(N64_GCCPREFIX_TRIPLET)as
+N64_AR = $(N64_GCCPREFIX_TRIPLET)gcc-ar
+N64_LD = $(N64_GCCPREFIX_TRIPLET)ld
+N64_OBJCOPY = $(N64_GCCPREFIX_TRIPLET)objcopy
+N64_OBJDUMP = $(N64_GCCPREFIX_TRIPLET)objdump
+N64_SIZE = $(N64_GCCPREFIX_TRIPLET)size
+N64_NM = $(N64_GCCPREFIX_TRIPLET)nm
+N64_STRIP = $(N64_GCCPREFIX_TRIPLET)strip
+
+CC      = $(N64_CC)
+LD      = $(N64_LD)
+OBJCOPY = $(N64_OBJCOPY)
+OBJDUMP = $(N64_OBJDUMP)
+
+CFLAGS = -G 0 -Os -march=vr4300 -mtune=vr4300 -mabi=o64 -I$(N64_INCLUDEDIR) -lc -lm -lgcc -ldragon -ldragonsys -mips3 -mno-check-zero-division -fno-builtin -mno-explicit-relocs -mno-memcpy -fno-reorder-blocks -ffast-math -fno-unsafe-math-optimizations -mno-check-zero-division -fno-optimize-sibling-calls
+LDFLAGS = -T disk.ld --emit-relocs $(N64_LIBDIR)/libdragon.a $(N64_LIBDIR)/libdragonsys.a $(N64_LIBDIR)/libc.a $(N64_LIBDIR)/libm.a
 
 __IPL_ENTRY =
 DISKREGION  = DISKREGION_USA
@@ -74,7 +91,7 @@ common: clean-diskSystem $(OBJS)
 	@$(OBJCOPY) -R .MIPS.abiflags -O binary disk.elf ../$(OUTFILENAME)
 	@dd if=/dev/zero bs=1 count=0 seek=$$((0x3DEC800)) of=../$(OUTFILENAME) 2>/dev/null
 	@echo "Encrypting $(OUTFILENAME)..."
-	@$(PYTHON) ../tool/encrypt.py "../$(OUTFILENAME)" "../$(OUTFILENAME)" 0x164450	
+	@$(PYTHON) ../tool/encrypt.py "../$(OUTFILENAME)" "../test.ndd" 0x164450	
 
 d64: clean-diskSystem $(OBJS)
 	@rm -f ../*.disk
@@ -84,32 +101,32 @@ d64: clean-diskSystem $(OBJS)
 
 ddTool/ddTool.o: ddTool/ddTool.c
 	@echo "Compiling tools..."
-	@$(CC) -DPREFIX=boot_ -c $< -o $@ -B$(CC1_DIR) $(CFLAGS)
+	@$(CC) -DPREFIX=boot_ -c $< -o $@  $(CFLAGS)
 
 ddTool/ddToolCode.o: ddTool/ddTool.c
-	@$(CC) -DPREFIX=ram_ -c $< -o $@ -B$(CC1_DIR) $(CFLAGS)
+	@$(CC) -DPREFIX=ram_ -c $< -o $@  $(CFLAGS)
 
 filesystem/filesystem.o: filesystem/filesystem.s
 	@echo "Compiling filesystem..."
-	@$(CC) -c $< -o $@ -B$(CC1_DIR) $(CFLAGS)
+	@$(CC) -c $< -o $@ $(CFLAGS)
 
 diskInfo/diskInfo.o: diskInfo/diskInfo.c
 	@echo "Compiling diskInfo..."
-	@$(CC) -c $< -o $@ -B$(CC1_DIR) $(CFLAGS)
+	@$(CC) -c $< -o $@ $(CFLAGS)
 
 diskCode/diskCode.o: diskCode/diskCode.c
 	@echo "Compiling diskCode..."
-	@$(CC) -DPREFIX=ram_ -c $< -o $@ -B$(CC1_DIR) $(CFLAGS)
+	@$(CC) -DPREFIX=ram_ -c $< -o $@  $(CFLAGS)
 
 diskBoot/diskBoot.o: diskBoot/diskBoot.c
 	@echo "Compiling diskBoot..."
-	@$(CC) -DPREFIX=boot_ -c $< -o $@ -B$(CC1_DIR) $(CFLAGS)
+	@$(CC) -DPREFIX=boot_ -c $< -o $@  $(CFLAGS)
 
 diskSystem/diskSystem.o: diskSystem/diskSystem.c
 	@echo "Compiling diskSystem..."
 	@$(CC) -D$(DISKREGION) -D$(DISKRELEASE) -D$(DISKFORMAT) -DTIMESTAMP=$(TIMESTAMP) \
 	       -D__IPL_ENTRY=0x$(__IPL_ENTRY_POINT) \
-	       -c $< -o $@ -B$(CC1_DIR) $(CFLAGS)
+	       -c $< -o $@  $(CFLAGS)
 
 clean-diskSystem:
 	@rm -f diskSystem/*.o
