@@ -31,6 +31,7 @@ SEC   := $(shell echo $(BUILDTIME) | awk '{print $$6}')
 BOOT_OFFS_VALUE = 0x738C0
 TIMESTAMP = "{0x00,0x$(YEAR1),0x$(YEAR2),0x$(MONTH),0x$(DAY),0x$(HOUR),0x$(MIN),0x$(SEC)}"
 OUTFILENAME = "ELBE.ndd"
+PYTHON := $(shell which python3)
 
 default: USA
 
@@ -49,14 +50,14 @@ JPN-DEV: DISKRELEASE = DISKRELEASE_DEV
 JPN-DEV: OUTFILENAME = "ELBJ-DEV.ndd"
 JPN-DEV: common
 
-USA-D64: DISKFORMAT = DISKFORMAT_D64
-USA-D64: OUTFILENAME = "ELBE.d64"
-USA-D64: d64
+#USA-D64: DISKFORMAT = DISKFORMAT_D64
+#USA-D64: OUTFILENAME = "ELBE.d64"
+#USA-D64: d64
 
-JPN-D64: DISKFORMAT = DISKFORMAT_D64
-JPN-D64: DISKREGION = DISKREGION_JPN
-JPN-D64: OUTFILENAME = "ELBJ.d64"
-JPN-D64: d64
+#JPN-D64: DISKFORMAT = DISKFORMAT_D64
+#JPN-D64: DISKREGION = DISKREGION_JPN
+#JPN-D64: OUTFILENAME = "ELBJ.d64"
+#JPN-D64: d64
 
 OBJS = ddTool/ddTool.o \
 diskInfo/diskInfo.o \
@@ -72,6 +73,8 @@ common: clean-diskSystem $(OBJS)
 	@$(LD) -o disk.elf $(OBJS) --defsym=BOOT_OFFS_VALUE=0x738C0 $(LDFLAGS)
 	@$(OBJCOPY) -R .MIPS.abiflags -O binary disk.elf ../$(OUTFILENAME)
 	@dd if=/dev/zero bs=1 count=0 seek=$$((0x3DEC800)) of=../$(OUTFILENAME) 2>/dev/null
+	@echo "Encrypting $(OUTFILENAME)..."
+	@$(PYTHON) ../tool/encrypt.py "../$(OUTFILENAME)" "../$(OUTFILENAME)" 0x164450	
 
 d64: clean-diskSystem $(OBJS)
 	@rm -f ../*.disk

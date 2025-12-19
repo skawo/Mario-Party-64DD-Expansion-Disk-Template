@@ -4,6 +4,7 @@ import platform
 import subprocess
 import sys
 import os
+import glob
 
 
 def run(cmd):
@@ -45,8 +46,6 @@ def main():
     finally:
         os.chdir(old_dir)
         
-    run(f'\"{py_cmd}\" tool/encrypt.py ELBE.ndd ELBE.ndd 0x164450')  
-
     print("OK.\n")
 
 
