@@ -129,8 +129,8 @@ void ddYaz0_Decompress(const u8* src, u8* dst, int compr_size)
 
             do
             {
-*dst++ = backPtr[-1];
-backPtr++;
+                *dst++ = backPtr[-1];
+                backPtr++;
                 chunkSize--;
             }
             while (chunkSize != 0);
