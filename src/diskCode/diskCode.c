@@ -8,10 +8,11 @@ void RebootSetup(void* frameBuffer);
 void Reboot()
 {
     u32* frameBuffer = (u32*)0xA0100000;
-    RebootSetup(frameBuffer);
 
     u32* graphic = (u32*)FILE_OFFS(TITLE_YAZ0);
     ddYaz0_Decompress((u8*)graphic, (u8*)frameBuffer, TITLE_YAZ0_LEN);
+
+    RebootSetup(frameBuffer);
 
     INFINITE_LOOP;
 }
