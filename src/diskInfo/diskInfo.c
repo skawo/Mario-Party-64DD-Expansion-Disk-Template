@@ -4,5 +4,5 @@ __attribute__((section(".diskInfo")))
 diskInfo diskInfoData = 
 {
     .LBAStart = 50,
-    .LBAAmount = 5,
+    .LBAAmount = 25,
 };

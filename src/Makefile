@@ -91,7 +91,7 @@ common: clean-diskSystem $(OBJS)
 	@$(OBJCOPY) -R .MIPS.abiflags -O binary disk.elf ../$(OUTFILENAME)
 	@dd if=/dev/zero bs=1 count=0 seek=$$((0x3DEC800)) of=../$(OUTFILENAME) 2>/dev/null
 	@echo "Encrypting $(OUTFILENAME)..."
-	@$(PYTHON) ../tool/encrypt.py "../$(OUTFILENAME)" "../test.ndd" 0x164450	
+	@$(PYTHON) ../tool/encrypt.py "../$(OUTFILENAME)" "../$(OUTFILENAME)" 0x164450	
 
 d64: clean-diskSystem $(OBJS)
 	@rm -f ../*.disk
