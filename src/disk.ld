@@ -125,15 +125,4 @@ SECTIONS {
 
     . = ALIGN(32);
     __ramEnd = .;
-
-    __romStart = .;
-    OFFSET += __ramEnd - __entry + 0x20;
-
-    .rom : AT(OFFSET) ALIGN(32) 
-    {
-        *(.text*)
-    } > ROM
 }
-
-__FileSystemStart = __romStart;
-__ErrorIPL_Start = __romStart;

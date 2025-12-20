@@ -78,11 +78,11 @@ JPN-DEV: common
 
 OBJS = ddTool/ddTool.o \
 diskInfo/diskInfo.o \
+diskCode/bootentry.o \
 diskCode/diskCode.o \
 ddTool/ddToolCode.o \
 diskBoot/diskBoot.o \
 diskSystem/diskSystem.o \
-filesystem/filesystem.o \
 
 common: clean-diskSystem $(OBJS)
 	@rm -f ../*.disk
@@ -112,6 +112,10 @@ filesystem/filesystem.o: filesystem/filesystem.s
 
 diskInfo/diskInfo.o: diskInfo/diskInfo.c
 	@echo "Compiling diskInfo..."
+	@$(CC) -c $< -o $@ $(CFLAGS)
+
+diskCode/bootentry.o: diskCode/bootentry.s
+	@echo "Assembling bootentry.s..."
 	@$(CC) -c $< -o $@ $(CFLAGS)
 
 diskCode/diskCode.o: diskCode/diskCode.c

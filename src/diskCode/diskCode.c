@@ -5,37 +5,56 @@
 extern void* __FileSystemStart;
 #define FILE_OFFS(file) (((u32)&__FileSystemStart) + file)
 
-void RebootSetup(void* frameBuffer);
-
 static resolution_t res = RESOLUTION_320x240;
-static bitdepth_t bit = DEPTH_32_BPP;
+static bitdepth_t bit = DEPTH_16_BPP;
 
-void Reboot()
-{
-    extern char _gp; 
-    asm volatile("la $gp, %0" : : "i"(&_gp));
+extern void *  VI_callback;
+extern int __boot_memsize;
 
+extern void __init_interrupts();
+extern void __joybus_init();
+extern void __inspector_init();
+extern void __rdpq_paragraph_char_check_bitfield();
+extern void display_show_force(display_context_t dc);
+
+void Disk_Main()
+{   
     debug_init_isviewer();
-    debugf("Libdragon IPL3\n");
-    debugf("TES1T\n");
+
+    display_close();
     display_init( res, bit, 2, GAMMA_NONE, FILTERS_RESAMPLE );
 
-    debugf("TES21T\n");
+    graphics_set_default_font();
 
-    static display_context_t disp = 0;
-    disp = display_get();
+    debugf("TEST2\n");
 
-    u32* test = (u32*)0x80700000;
-    *test = 0xDEADBEEF;
+    int x = 20;
+    int y = 20;
+    int vx = 1; 
+    int vy = 2;
 
     while (1)
     {
-        debugf("TEST\n");
+        display_context_t disp = 0;
+        disp = display_get();
+
+        debugf("disp: %x\n", disp);
 
         graphics_fill_screen( disp, 0 );
+        graphics_draw_text( disp, x, y, "HELLO WORLD" );
+        
+        display_show_force(disp);
 
-        graphics_draw_text( disp, 20, 20, "TESTING" );
+        x += vx;
+        y += vy;
 
-        display_show(disp);
+        if (x < 0 || x > display_get_width() - 8 * 11)
+            vx = -vx;
+        if (y < 0 || y > display_get_height() - 8)
+            vy = -vy;
+
+        wait_ms(10);
+
+
     }
 }
