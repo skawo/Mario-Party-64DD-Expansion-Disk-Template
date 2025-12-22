@@ -79,10 +79,13 @@ JPN-DEV: common
 OBJS = ddTool/ddTool.o \
 diskInfo/diskInfo.o \
 diskCode/bootentry.o \
+diskCode/dd.o \
+diskCode/ddRtc.o \
 diskCode/diskCode.o \
 ddTool/ddToolCode.o \
 diskBoot/diskBoot.o \
 diskSystem/diskSystem.o \
+filesystem/filesystem.o
 
 common: clean-diskSystem $(OBJS)
 	@rm -f ../*.disk
@@ -125,6 +128,14 @@ diskCode/diskCode.o: diskCode/diskCode.c
 diskBoot/diskBoot.o: diskBoot/diskBoot.c
 	@echo "Compiling diskBoot..."
 	@$(CC) -DPREFIX=boot_ -c $< -o $@  $(CFLAGS)
+
+diskCode/dd.o: diskCode/dd.c
+	@echo "Compiling dd..."
+	@$(CC) -DPREFIX=ram_ -c $< -o $@  $(CFLAGS)
+
+diskCode/ddRtc.o: diskCode/dd_rtc.c
+	@echo "Compiling ddRtc..."
+	@$(CC) -DPREFIX=ram_ -c $< -o $@  $(CFLAGS)
 
 diskSystem/diskSystem.o: diskSystem/diskSystem.c
 	@echo "Compiling diskSystem..."

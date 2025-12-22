@@ -9,11 +9,12 @@
                 "${workspaceFolder}/../../include/libu64",
                 "${workspaceFolder}/../../include/tables",
                 "${workspaceFolder}/../../include/audio",
+                "${workspaceFolder}/../../include/libdragon",
                 "${workspaceFolder}/../../include"
             ],
             "defines": [
                 "_DEBUG",
-                "UNICODE",
+                "UNICODE", 
                 "_UNICODE"
             ],
             "windowsSdkVersion": "10.0.26100.0",

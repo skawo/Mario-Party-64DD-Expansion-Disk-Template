@@ -106,7 +106,6 @@ SECTIONS {
         *(.gnu.linkonce.b.*)
         *(COMMON)
         . = ALIGN(8);
-         __bss_end = .;
     } > RAM
 
    .eh_frame_hdr : { *(.eh_frame_hdr) }
@@ -125,4 +124,18 @@ SECTIONS {
 
     . = ALIGN(32);
     __ramEnd = .;
+
+    __romStart = .;
+    OFFSET += __ramEnd - __entry + 0x20;
+
+    .rom : AT(OFFSET) ALIGN(32) 
+    {
+        *(.text*)
+        . = ALIGN(32);
+    } > ROM
+
+    __bss_end = __ramEnd + SIZEOF( .rom ) + 0x20;
 }
+
+__FileSystemStart = __romStart;
+__FileSystemStartROM = OFFSET - 0x20;

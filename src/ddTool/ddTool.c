@@ -8,8 +8,6 @@ typedef struct Yaz0Header
     u32 uncompDataOffset;
 } Yaz0Header;
 
-
-
 u32 ddStrlen(const char* str) 
 {
     const char* ptr = str;

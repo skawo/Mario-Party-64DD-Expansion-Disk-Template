@@ -18,15 +18,6 @@
 #define MAGIC_USA 0x2263EE56
 #define MAGIC_JPN 0xE848D316
 
-#define LEO_DISK_TYPE_0 0
-#define LEO_DISK_TYPE_1 1
-#define LEO_DISK_TYPE_2 2
-#define LEO_DISK_TYPE_3 3
-#define LEO_DISK_TYPE_4 4
-#define LEO_DISK_TYPE_5 5
-#define LEO_DISK_TYPE_6 6
-
-#define DISK_TYPE LEO_DISK_TYPE_6
 #define IPL_LBA_LOAD_AMOUNT 0x000A  // Should be >= size of boot section
 
 #if defined(DISKRELEASE_DEV) || !defined(DISKFORMAT_NDD)

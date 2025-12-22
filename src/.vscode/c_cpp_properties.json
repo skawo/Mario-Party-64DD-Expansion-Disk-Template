@@ -9,7 +9,7 @@
                 "${workspaceFolder}/../include/libu64",
                 "${workspaceFolder}/../include/tables",
                 "${workspaceFolder}/../include/audio",
-                "${workspaceFolder}/../include",
+                "${workspaceFolder}/../include"
             ],
             "defines": [
                 "_DEBUG",
