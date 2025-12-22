@@ -167,14 +167,17 @@ uint32_t readDiskID(void);
 void BMReset(uint8_t sector);
 void StartBM(uint8_t sector);
 void sendMSEQ(uint32_t secsize);
-void readDiskSectorLBA(uint8_t LBA, uint8_t sector, void * buffer);
-void readDiskSector(uint8_t track, uint8_t sector, void * buffer);
+void readDiskSectorLBA(uint16_t LBA, uint8_t sector, void * buffer);
+void readDiskSector(uint16_t LBA, uint16_t track, uint16_t sector, void* buffer);
 void PRINTSTAT(void);
 uint8_t getZonefromTrack(uint8_t track);
 int bytetolba(int startlba, int nbytes, int32_t* lbaout);
 int lbatobyte(int startlba, int nlbas, int32_t* bytes);
 int32_t ConvertByteToLBAWithOffset(int32_t bytePos, int32_t* outLBA, int32_t* outOffset);
-void readDiskLBA(uint8_t LBA, uint8_t* buffer);
+int readDiskLBA(uint16_t LBA, uint8_t* buffer);
 void readDisk(uint32_t offset, uint32_t size, uint8_t* dest);
+void readDiskSystemData(void);
+int lbatophys(int lba, unsigned char* sys_data);
+uint32_t getSecSizefromTrack(uint8_t track);
 
 #endif

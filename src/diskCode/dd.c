@@ -12,6 +12,8 @@
 #include "ddGlobals.h"
 
 uint8_t diskReadBuffer[0x4D10];
+uint8_t sysData[232];
+bool sysDataRead = false;
 
 static unsigned int stat, bm_stat, err_stat = 0;
 
@@ -63,13 +65,22 @@ uint32_t readDiskID(void)
 {
     readDiskSectorLBA(14, 0, diskReadBuffer);
     uint32_t diskIDs = *(uint32_t*)diskReadBuffer;
+    debugf("disk ID is %x", diskIDs);
     return diskIDs;
+}
+
+void readDiskSystemData(void)
+{
+    readDiskSectorLBA(0, 0, diskReadBuffer);
+    memcpy(sysData, diskReadBuffer, 232);
+    debugf("sysdata at %x\n", sysData);
+    sysDataRead = true;
 }
 
 void BMReset(uint8_t sector) 
 {
     io_write(ASIC_BM_CTL, (BM_MODE | BM_RESET | ((uint32_t)sector << 16)) );    // Set BM (Bit Micro?) Reset. Leave BM_MODE set.
-    io_write(ASIC_BM_CTL, (BM_MODE | ((uint32_t)sector << 16)));  		        // Clear BM (Bit Micro?) reset. Leave BM_MODE set.
+    io_write(ASIC_BM_CTL, (BM_MODE | ((uint32_t)sector << 16)));  		   // Clear BM (Bit Micro?) reset. Leave BM_MODE set.
 }
 
 void StartBM(uint8_t sector) 
@@ -111,10 +122,7 @@ void readDisk(u32 offset, u32 size, uint8_t* dest)
     for (u32 lba = lbaSt; lba <= lbaEn; lba++)
     {
         debugf("reading %x %x\n", lba, diskReadBuffer);
-        readDiskLBA(lba, diskReadBuffer);
-
-        int zone = LBAToVZone(lba, DISK_TYPE);
-        int copySize = BLOCK_SIZES[zone];
+        int copySize = readDiskLBA(lba, diskReadBuffer);
 
         u32 copyStart = 0;
 
@@ -125,60 +133,67 @@ void readDisk(u32 offset, u32 size, uint8_t* dest)
         }
 
         if (lba == lbaEn)
-        {
-            copySize = lbaEnOffs - copyStart;
-        }
+            copySize = lbaEnOffs;
 
         if (copySize > bytesRemaining)
             copySize = bytesRemaining;
 
-        memcpy(destPtr, diskReadBuffer + copyStart, copySize);
-        destPtr += copySize;
-        bytesRemaining -= copySize;
+        if (copySize != 0)
+        {
+            debugf("copy %x %x -> %x %x\n", lba, diskReadBuffer + copyStart, copySize, destPtr);
+            memcpy(destPtr, diskReadBuffer + copyStart, copySize);
+            destPtr += copySize;
+            bytesRemaining -= copySize;
+        }
     }
 }
 
-void readDiskLBA(uint8_t LBA, u8* buffer)
+int readDiskLBA(uint16_t LBA, u8* buffer)
 {
-    int zone = LBAToVZone(LBA, DISK_TYPE);
-    int sectorSize = SECTOR_SIZES[zone];
+    int bytesRead = 0;
 
-    for (u8 sector = 0; sector < 85; sector++) 
+    for (int sector = 0; sector < 85; sector++) 
     {
+        int sectorSize = getSecSizefromTrack(LBA >> 1);
+
         u8* buffer_ptr = buffer + (sector * sectorSize);
         readDiskSectorLBA(LBA, sector, buffer_ptr);
-    }    
+
+        bytesRead += sectorSize;
+    } 
+
+    return bytesRead;
 }
 
-void readDiskSectorLBA(uint8_t LBA, uint8_t sector, void * buffer)
+void readDiskSectorLBA(uint16_t LBA, uint8_t sector, void * buffer)
 {
-    readDiskSector((LBA >> 1), (sector + (ALL_SECS_PER_BLK * (LBA & 1))), buffer);
+    readDiskSector(LBA, (LBA >> 1), (sector + (ALL_SECS_PER_BLK * (((LBA & 2) >> 1) ^ (LBA & 1)))), buffer);
 }
 
-void readDiskSector(uint8_t track, uint8_t sector, void* buffer)
+void readDiskSector(uint16_t LBA, uint16_t track, uint16_t sector, void* buffer)
 {   
-    debugf("sector %x -> %x\n", sector, buffer);
-
     //Read single sector
     if (io_read(ASIC_STATUS) & LEO_STAT_MECHA_INT)
-	io_write(ASIC_BM_CTL, BM_MECHA_INT_RESET);
+	    io_write(ASIC_BM_CTL, BM_MECHA_INT_RESET);
 
-    io_write(ASIC_DATA, (uint32_t)(track << 16));	//Read Track (LBA >> 1)
+    io_write(ASIC_DATA, lbatophys(LBA, sysData));	//Read Track (LBA >> 1)
     io_write(ASIC_CMD, ASIC_RD_SEEK);	//SEEK CMD
     io_write(ASIC_BM_CTL, 0x00000000);	//Clear BM CTL
     io_write(ASIC_SEQ_CTL, 0x00000000);	//Clear SEQ CTL
 
     wait64dd_statusON(LEO_STAT_MECHA_INT);
 
-    if (getZonefromTrack(track) == 0xFF)
+    if (getSecSizefromTrack(track) == 0)
 	    return;
 
-    uint32_t SecSize = (uint32_t)SECTOR_SIZES[getZonefromTrack(track)] - 1;
+    uint32_t SecSize = getSecSizefromTrack(track) - 1;
     data_cache_hit_writeback(buffer, SecSize);
 
+    debugf("track %x, sector %x -> %x, %d\n", track, sector, buffer, SecSize);
+
     sendMSEQ(SecSize);	//Send MSEQ
+    io_write(ASIC_HOST_SECBYTE, (SecSize << 16));    
     io_write(ASIC_SEC_BYTE, (0x59000000 | ((SecSize + C1_Length) << 16)));
-    io_write(ASIC_HOST_SECBYTE, (SecSize << 16));
 
     io_write(ASIC_SEQ_CTL, MICRO_PC_ENABLE);	//MSEQ enable
 
@@ -187,32 +202,43 @@ void readDiskSector(uint8_t track, uint8_t sector, void* buffer)
 
     wait64dd_statusON(LEO_STAT_BM_INT);
 
-    int bmStatus = io_read(ASIC_BM_STATUS);
-
-    if (bmStatus & LEO_BMST_ERROR || bmStatus & LEO_BMST_MICRO_STATUS || bmStatus & LEO_BMST_C1_SINGLE)
-        return;
-
     wait64dd_statusON(LEO_STAT_DATA_REQ);
     
-    stat = io_read(ASIC_STATUS);
-    if ((stat & LEO_STAT_DATA_REQ) == LEO_STAT_DATA_REQ)
-        dma_read_raw_async(buffer, ASIC_SECTOR_BUFF, SecSize);
+    dma_read_raw_async(buffer, ASIC_SECTOR_BUFF, SecSize + 1);
 
+    stat = io_read(ASIC_STATUS);
+    bm_stat = io_read(ASIC_BM_STATUS);
     err_stat = io_read(ASIC_ERR_SECTOR);
 }
 
-uint8_t getZonefromTrack(uint8_t track)
+uint32_t getSecSizefromTrack(uint8_t track)
 {
     int Total = 0;
 
     for (int i = 0; i < 16; i++)
     {
-        Total += Tracks[i];
+        if ((Zones[DISK_TYPE][i] <= (DISK_TYPE + 2))) //ROM
+        {
+            //Detect Head 0/1
+            if (i <= (DISK_TYPE + 2))
+                Total += Tracks[Zones[DISK_TYPE][i]];
+            else
+                Total += Tracks[Zones[DISK_TYPE][i] + 9];
+        }
+        else //RAM
+        {
+            //Detect Head 0/1
+            if ((i > (5 + (DISK_TYPE * 2))) && (i < (10 + DISK_TYPE)))
+            Total += Tracks[Zones[DISK_TYPE][i]];
+            else
+            Total += Tracks[Zones[DISK_TYPE][i] + 9];
+        }
+
         if (track < Total)
-            return Zones[i];
+            return SECTOR_SIZES[Zones[DISK_TYPE][i]];
     }
 
-    return 0xFF;
+    return 0;
 }
 
 int bytetolba(int startlba, int nbytes, s32* lbaout)
@@ -294,6 +320,76 @@ int lbatobyte(int startlba, int nlbas, s32* bytes)
     }
     *bytes = totalbytes;
     return LEO_ERROR_GOOD;
+}
+
+int lbatophys(int lba, u8* sys_data)
+{
+    int start_block = 0;
+    int vzone, pzone = 0;
+    int param_head, param_zone, param_cylinder = 0;
+    int vzone_lba, cylinder_zone_start, defect_offset, defect_amount = 0;
+    
+    int disktype = sys_data[5] & 0xF;
+
+    //Skip System Area to correspond LBAs to SDK manual
+    //lba += 24;
+
+    //Unused here, get Block 0/1 on Disk Track
+    if (((lba & 3) == 0) || ((lba & 3) == 3))
+        start_block = 0;
+    else
+        start_block = 1;
+    
+    //Get Virtual & Physical Disk Zones
+    vzone = LBAToVZone(lba, disktype);
+    pzone = VZoneToPZone(vzone, disktype);
+
+    //Get Disk Head
+    param_head = (7 < pzone);
+
+    //Get Disk Zone
+    param_zone = pzone;
+    if (param_head != 0)
+        param_zone = pzone - 7;
+    
+    //Get Virtual Zone LBA start, if Zone 0, it's LBA 0
+    if (vzone == 0)
+        vzone_lba = 0;
+    else
+        vzone_lba = VZONE_LBA_TBL[disktype][vzone - 1];
+    
+    //Calculate Physical Cylinder
+    param_cylinder = (lba - vzone_lba) >> 1;
+
+    //Get the start cylinder from current zone
+    cylinder_zone_start = SCYL_ZONE_TBL[0][pzone];
+    if (param_head != 0)
+    {
+        //If Head 1, count from the other way around
+        param_cylinder = -param_cylinder;
+        cylinder_zone_start = OUTERCYL_TBL[param_zone - 1];
+    }
+    param_cylinder += SCYL_ZONE_TBL[0][pzone];
+
+    //Get the relative offset to defect tracks for the current zone (if Zone 0, then it's 0)
+    if (pzone == 0)
+        defect_offset = 0;
+    else
+        defect_offset = sys_data[8 + pzone - 1];
+    
+    //Get amount of defect tracks for the current zone
+    defect_amount = sys_data[8 + pzone] - defect_offset;
+
+    //Skip defect tracks
+    while ((defect_amount != 0) && ((sys_data[0x20 + defect_offset] + cylinder_zone_start) <= param_cylinder))
+    {
+        param_cylinder++;
+        defect_offset++;
+        defect_amount--;
+    }
+
+    //Return Cylinder and Head data for 64DD Seek command
+    return ((param_head  & 0x0F) << 28) | ((param_cylinder & 0x0FFF) << 16);
 }
 
 s32 ConvertByteToLBAWithOffset(s32 bytePos, s32* outLBA, s32* outOffset) 

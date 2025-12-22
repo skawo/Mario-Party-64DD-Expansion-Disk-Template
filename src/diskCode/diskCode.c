@@ -23,8 +23,9 @@ extern void display_show_force(display_context_t dc);
 
 void cartInterruptHandler();
 char diskID[4];
-int offsz = 8;
 extern uint8_t diskReadBuffer[];
+extern u32* readDest;
+extern int readSize;
 
 void Disk_Main()
 {
@@ -56,7 +57,11 @@ void Disk_Main()
 
         if (detectdisk() == 1)
         {
+            debugf("Buffer is at %x\n", diskReadBuffer);
+
             uint32_t idstuff = readDiskID();
+            readDiskSystemData();
+        
             diskID[0] = (char)((idstuff & 0xFF000000) >> 24);
             diskID[1] = (char)((idstuff & 0x00FF0000) >> 16);
             diskID[2] = (char)((idstuff & 0x0000FF00) >> 8);
@@ -93,7 +98,7 @@ void Disk_Main()
         {
             getRTC_64dd();
 
-            sprintf(dStr, "Date: %02x/%02x/%02x - %02x:%02x:%02x\n\n", offsz, month, year, hour, min, sec);
+            sprintf(dStr, "Date: %02x/%02x/%02x - %02x:%02x:%02x\n\n", day, month, year, hour, min, sec);
             sprintf(idStr, "Disk ID: %c%c%c%c\n", diskID[0], diskID[1], diskID[2], diskID[3]);
 
             graphics_draw_text( disp, 20, 20, dStr);
@@ -125,7 +130,9 @@ void cartInterruptHandler()
     u32 stat = io_read(ASIC_STATUS);
 
     if (stat & LEO_STAT_MECHA_INT)
+    {
         io_write(ASIC_BM_CTL, BM_MECHA_INT_RESET);
+    }
 }
 
 void drawDiskBuffer(display_context_t* disp)
