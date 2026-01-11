@@ -1,11 +1,10 @@
 arch
 architectures
-bass.exe
 _pj64d.lnk
 *.ndd
 *.ndr
 *.disk
-tool/gcc/linux
-tool/gcc/win
 *.elf
 *.o
+/tool/gcc/libexec
+/tool/gcc/win
